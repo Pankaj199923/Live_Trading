@@ -19,8 +19,8 @@ import requests
 import xlwings as xw
 
 # ============ CONFIG — YAHAN APNI VALUES DAALO ============
-WORKBOOK_PATH = r"Z:\PANKAJ\pankaj_codes\Strategy\ramesh12.xlsx"  # Excel me jo file khuli hai, uska pura path
-SHEET_NAME = None          # None = active sheet, ya "Sheet1" jaisa naam do
+WORKBOOK_PATH = r"Z:\PANKAJ\pankaj_codes\Strategy\opch.xlsx"  # Excel me jo file khuli hai, uska pura path
+SHEET_NAME = "Live_Summary"          # None = active sheet, ya "Sheet1" jaisa naam do
 SERVER_URL = "https://exceltrade.onrender.com/update"
 API_KEY = "mysecretkey123"     # server.py wali API_KEY se match honi chahiye
 POLL_SECONDS = 1.5         # kitni baar (seconds me) check karega ki data badla ya nahi

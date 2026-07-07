@@ -322,6 +322,11 @@
   }
   .arrow-up::before { content: '▲ '; font-size: 9px; }
   .arrow-down::before { content: '▼ '; font-size: 9px; }
+  td.tick-changed { animation: cellFlash 1.4s ease-out; }
+  @keyframes cellFlash {
+    0% { background: rgba(255, 159, 28, 0.24); }
+    100% { background: transparent; }
+  }
 
   .empty-state, .no-match {
     padding: 60px 20px;
@@ -397,14 +402,23 @@
   const ageAt = document.getElementById('ageAt');
   const clockAt = document.getElementById('clockAt');
   const tableContainer = document.getElementById('tableContainer');
+  const tableWrap = document.querySelector('.table-wrap');
   const searchBox = document.getElementById('searchBox');
   const tapeTrack = document.getElementById('tapeTrack');
 
   let currentHeaders = [];
   let currentRows = [];
-  let previousRows = null;
+  let previousRows = null;      // last snapshot actually shown, for diffing
   let lastUpdateTime = null;
-  let tapeLog = []; // recent tick changes, newest first
+  let tapeLog = [];
+
+  // ---- live table DOM cache: only rebuilt when structure changes ----
+  let tableBuilt = false;
+  let builtHeaders = [];
+  let builtNumericCols = [];
+  let rowRefs = [];             // tr elements, index = row index
+  let cellRefs = [];            // cellRefs[rIdx][cIdx] = td element (data cols only)
+  let showingFiltered = false;
 
   socket.on('connect', () => {
     connDot.classList.add('live');
@@ -425,18 +439,54 @@
   });
 
   function loadData(data) {
+    const headers = data.headers;
+    const rows = data.rows;
+    const numericCols = headers.map((_, i) => columnIsNumeric(i, rows));
+
     sheetName.textContent = data.sheet_name || 'Sheet';
-    rowCount.innerHTML = `<span class="num">${data.rows.length}</span> rows`;
-    colCount.innerHTML = `<span class="num">${data.headers.length}</span> cols`;
     updatedAt.textContent = data.updated_at || '—';
     lastUpdateTime = Date.now();
 
-    const headersChanged = JSON.stringify(currentHeaders) !== JSON.stringify(data.headers);
-    previousRows = headersChanged ? null : currentRows;
-    currentHeaders = data.headers;
-    currentRows = data.rows;
+    // sirf changed cells nikaalte hain — poora dataset compare nahi karte page pe
+    const diffs = computeDiffs(headers, rows, numericCols);
+
+    currentHeaders = headers;
+    currentRows = rows;
     searchBox.disabled = false;
-    renderTable(currentHeaders, currentRows, true);
+
+    if (!showingFiltered) {
+      rowCount.innerHTML = `<span class="num">${rows.length}</span> rows`;
+    }
+    colCount.innerHTML = `<span class="num">${headers.length}</span> cols`;
+
+    if (diffs.length) {
+      const numericDiffs = diffs.filter(d => d.up !== null);
+      if (numericDiffs.length) {
+        tapeLog = [...numericDiffs.slice().reverse(), ...tapeLog].slice(0, 40);
+        renderTape();
+      }
+    }
+
+    if (searchBox.value.trim()) {
+      // search active hai to filtered view hi refresh hoga, live update ke saath
+      showingFiltered = true;
+      tableBuilt = false; // agla non-filtered render full rebuild karega
+      applyFilter();
+    } else {
+      const headersChanged = JSON.stringify(headers) !== JSON.stringify(builtHeaders);
+      const structureSame = tableBuilt && !headersChanged &&
+        rows.length === rowRefs.length &&
+        JSON.stringify(numericCols) === JSON.stringify(builtNumericCols);
+
+      if (!structureSame) {
+        buildTable(headers, rows, numericCols);
+      } else {
+        patchCells(diffs);
+      }
+      showingFiltered = false;
+    }
+
+    previousRows = rows;
   }
 
   function isNumericValue(v) {
@@ -462,33 +512,47 @@
     return n.toLocaleString('en-IN', { maximumFractionDigits: 4 });
   }
 
-  // previous snapshot ke against numeric deltas nikal ke tick tape mein daalte hain
-  function diffAndLog(headers, rows, numericCols) {
-    if (!previousRows) return;
-    const newEntries = [];
+  function cellText(v) { return v === null || v === undefined ? '' : String(v); }
+
+  // Purane snapshot se naya snapshot compare karke sirf badle hue cells ki list banate hain
+  function computeDiffs(headers, rows, numericCols) {
+    if (!previousRows) return [];
+    const diffs = [];
     rows.forEach((row, rIdx) => {
       const prevRow = previousRows[rIdx];
       if (!prevRow) return;
       row.forEach((cell, cIdx) => {
-        if (!numericCols[cIdx]) return;
-        const prevVal = prevRow[cIdx];
-        if (!isNumericValue(cell) || !isNumericValue(prevVal)) return;
-        const a = Number(String(prevVal).replace(/,/g, ''));
-        const b = Number(String(cell).replace(/,/g, ''));
-        if (a === b) return;
-        newEntries.push({
-          field: headers[cIdx],
-          row: rIdx + 1,
-          from: a,
-          to: b,
-          up: b > a
-        });
+        const rawNew = cellText(cell);
+        const rawOld = cellText(prevRow[cIdx]);
+        if (rawNew === rawOld) return;
+        const isNum = numericCols[cIdx];
+        let up = null;
+        if (isNum && isNumericValue(rawNew) && isNumericValue(rawOld)) {
+          const a = Number(rawOld.replace(/,/g, ''));
+          const b = Number(rawNew.replace(/,/g, ''));
+          up = b > a;
+        }
+        diffs.push({ rIdx, cIdx, field: headers[cIdx], row: rIdx + 1, from: rawOld, to: rawNew, up, isNum });
       });
     });
-    if (newEntries.length) {
-      tapeLog = [...newEntries.reverse(), ...tapeLog].slice(0, 40);
-      renderTape();
-    }
+    return diffs;
+  }
+
+  // Sirf jo cells badli hain unhi ka DOM patch karte hain — baaki page bilkul untouched rehta hai
+  function patchCells(diffs) {
+    diffs.forEach(d => {
+      const td = cellRefs[d.rIdx] && cellRefs[d.rIdx][d.cIdx];
+      if (!td) return;
+      const isNumDisplay = d.isNum && isNumericValue(d.to) && d.to !== '';
+      td.textContent = isNumDisplay ? formatNumber(d.to) : d.to;
+      td.title = d.to;
+
+      td.classList.remove('tick-up', 'tick-down', 'tick-changed', 'arrow-up', 'arrow-down');
+      void td.offsetWidth; // restart animation on repeated ticks
+      if (d.up === true) td.classList.add('tick-up', 'arrow-up');
+      else if (d.up === false) td.classList.add('tick-down', 'arrow-down');
+      else td.classList.add('tick-changed');
+    });
   }
 
   function renderTape() {
@@ -500,58 +564,59 @@
         <span>${formatNumber(e.from)} → </span>
         <span class="${e.up ? 'up' : 'down'}">${formatNumber(e.to)} ${e.up ? '▲' : '▼'}</span>
       </div>`).join('');
-    // duplicate content for seamless marquee loop
-    tapeTrack.innerHTML = html + html;
+    tapeTrack.innerHTML = html + html; // duplicated for seamless marquee loop
   }
 
-  function renderTable(headers, rows, checkDiff) {
+  // Poori table sirf tabhi dobara banti hai jab columns, headers ya row count badle hon
+  function buildTable(headers, rows, numericCols) {
+    const savedScrollTop = tableWrap.scrollTop;
+    const savedScrollLeft = tableWrap.scrollLeft;
+
     if (rows.length === 0) {
       tableContainer.innerHTML = `
         <div class="empty-state">
           <div class="big">Sheet khali hai</div>
           <div class="small">Data daalo aur save karo</div>
         </div>`;
+      tableBuilt = false;
       return;
     }
-
-    const numericCols = headers.map((_, i) => columnIsNumeric(i, rows));
-    if (checkDiff) diffAndLog(headers, rows, numericCols);
 
     let html = '<table><thead><tr><th class="idx-col">#</th>';
     headers.forEach((h, i) => {
       html += `<th class="${numericCols[i] ? 'col-num' : ''}" title="${escapeHtml(h)}">${escapeHtml(h)}</th>`;
     });
     html += '</tr></thead><tbody>';
-
     rows.forEach((row, rIdx) => {
-      const prevRow = previousRows ? previousRows[rIdx] : null;
-      html += '<tr class="updated">';
+      html += '<tr>';
       html += `<td class="idx-col">${rIdx + 1}</td>`;
       row.forEach((cell, cIdx) => {
-        const raw = cell === null || cell === undefined ? '' : cell;
+        const raw = cellText(cell);
         const isNum = numericCols[cIdx] && isNumericValue(raw) && raw !== '';
         const display = isNum ? formatNumber(raw) : escapeHtml(raw);
-
-        let tickClass = '';
-        if (checkDiff && isNum && prevRow && isNumericValue(prevRow[cIdx])) {
-          const a = Number(String(prevRow[cIdx]).replace(/,/g, ''));
-          const b = Number(String(raw).replace(/,/g, ''));
-          if (b > a) tickClass = 'tick-up arrow-up';
-          else if (b < a) tickClass = 'tick-down arrow-down';
-        }
-
-        html += `<td class="${isNum ? 'col-num' : ''} ${tickClass}" title="${escapeHtml(raw)}">${display}</td>`;
+        html += `<td class="${isNum ? 'col-num' : ''}" title="${escapeHtml(raw)}">${display}</td>`;
       });
       html += '</tr>';
     });
     html += '</tbody></table>';
     tableContainer.innerHTML = html;
+
+    tableWrap.scrollTop = savedScrollTop;
+    tableWrap.scrollLeft = savedScrollLeft;
+
+    rowRefs = Array.from(tableContainer.querySelectorAll('tbody tr'));
+    cellRefs = rowRefs.map(tr => Array.from(tr.children).slice(1)); // skip idx-col
+    builtHeaders = headers.slice();
+    builtNumericCols = numericCols.slice();
+    tableBuilt = true;
   }
 
   function applyFilter() {
     const q = searchBox.value.trim().toLowerCase();
+    showingFiltered = !!q;
     if (!q) {
-      renderTable(currentHeaders, currentRows, false);
+      tableBuilt = false; // force clean rebuild of the live table on next update
+      buildTable(currentHeaders, currentRows, currentHeaders.map((_, i) => columnIsNumeric(i, currentRows)));
       rowCount.innerHTML = `<span class="num">${currentRows.length}</span> rows`;
       return;
     }
@@ -563,7 +628,24 @@
       tableContainer.innerHTML = `<div class="no-match">Koi match nahi mila for "${escapeHtml(searchBox.value)}"</div>`;
       return;
     }
-    renderTable(currentHeaders, filtered, false);
+    const numericCols = currentHeaders.map((_, i) => columnIsNumeric(i, currentRows));
+    let html = '<table><thead><tr><th class="idx-col">#</th>';
+    currentHeaders.forEach((h, i) => {
+      html += `<th class="${numericCols[i] ? 'col-num' : ''}" title="${escapeHtml(h)}">${escapeHtml(h)}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    filtered.forEach((row, rIdx) => {
+      html += `<tr><td class="idx-col">${rIdx + 1}</td>`;
+      row.forEach((cell, cIdx) => {
+        const raw = cellText(cell);
+        const isNum = numericCols[cIdx] && isNumericValue(raw) && raw !== '';
+        const display = isNum ? formatNumber(raw) : escapeHtml(raw);
+        html += `<td class="${isNum ? 'col-num' : ''}" title="${escapeHtml(raw)}">${display}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    tableContainer.innerHTML = html;
   }
 
   function escapeHtml(val) {
@@ -572,7 +654,6 @@
     return div.innerHTML;
   }
 
-  // "/" dabao to search box par jump ho jaaye, jaise real terminals mein hota hai
   document.addEventListener('keydown', (e) => {
     if (e.key === '/' && document.activeElement !== searchBox) {
       e.preventDefault();
@@ -585,7 +666,6 @@
     }
   });
 
-  // session clock + "last update kitni der pehle" — terminal jaisa live feel
   setInterval(() => {
     clockAt.textContent = new Date().toLocaleTimeString('en-IN', { hour12: false });
     if (lastUpdateTime) {

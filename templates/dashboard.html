@@ -3,246 +3,335 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Excel Dashboard</title>
+<title>TERM // Live Excel Feed</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0B0E11;
-    --panel: #12161B;
-    --border: #232A32;
-    --text: #E6E9EC;
-    --muted: #7C8590;
-    --live: #3DDC84;
-    --live-dim: #1E5C3C;
-    --amber: #F5A623;
+    --bg: #05060A;
+    --panel: #0A0D11;
+    --panel-alt: #0D1117;
+    --border: #1B2128;
+    --border-bright: #2A343D;
+    --text: #C9D3D6;
+    --text-bright: #EDF3F5;
+    --muted: #4E5A63;
+    --amber: #FF9F1C;
+    --amber-dim: #5A3E12;
+    --up: #00E08F;
+    --up-dim: #0A3D2C;
+    --down: #FF4757;
+    --down-dim: #4A1319;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scrollbar-color: var(--border) var(--bg); }
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Inter', sans-serif;
+    font-family: 'IBM Plex Mono', monospace;
     min-height: 100vh;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+    background-size: 24px 24px;
   }
-  .topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 18px 28px;
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .brand-title {
-    font-weight: 700;
-    font-size: 15px;
-    letter-spacing: 0.02em;
-  }
-  .brand-sub {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: var(--muted);
-  }
-  .status {
-    display: flex;
-    align-items: center;
-    gap: 22px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: var(--muted);
-  }
-  .status-item { display: flex; align-items: center; gap: 8px; }
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--muted);
-    position: relative;
-  }
-  .dot.live {
-    background: var(--live);
-    box-shadow: 0 0 0 0 rgba(61, 220, 132, 0.6);
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(61, 220, 132, 0.55); }
-    70% { box-shadow: 0 0 0 8px rgba(61, 220, 132, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(61, 220, 132, 0); }
-  }
+
+  /* ---------- top scanline flash ---------- */
   .scanline {
     height: 2px;
     width: 100%;
-    background: linear-gradient(90deg, transparent, var(--live), transparent);
+    background: linear-gradient(90deg, transparent, var(--amber), transparent);
     opacity: 0;
+    position: sticky;
+    top: 0;
+    z-index: 50;
   }
-  .scanline.flash {
-    animation: scan 0.9s ease-out;
-  }
+  .scanline.flash { animation: scan 0.9s ease-out; }
   @keyframes scan {
     0% { opacity: 1; transform: translateX(-100%); }
     60% { opacity: 1; }
     100% { opacity: 0; transform: translateX(100%); }
   }
-  .container {
-    padding: 24px 28px 48px;
-    max-width: 100%;
-    margin: 0 auto;
+
+  /* ---------- topbar ---------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-wrap: wrap;
+    gap: 12px;
+    position: relative;
   }
+  .topbar::before, .topbar::after {
+    content: '';
+    position: absolute;
+    width: 10px; height: 10px;
+    border-color: var(--amber-dim);
+    opacity: 0.7;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 9px; height: 9px;
+    background: var(--amber);
+    box-shadow: 0 0 8px rgba(255,159,28,0.7);
+    flex-shrink: 0;
+  }
+  .brand-title {
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    color: var(--text-bright);
+    text-transform: uppercase;
+  }
+  .brand-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+  .status-item { display: flex; align-items: center; gap: 7px; }
+  .status-label { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 0.08em; }
+  .status-val { color: var(--text-bright); }
+  .dot {
+    width: 7px; height: 7px;
+    background: var(--muted);
+    position: relative;
+  }
+  .dot.live {
+    background: var(--up);
+    box-shadow: 0 0 0 0 rgba(0, 224, 143, 0.6);
+    animation: pulse 1.8s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(0, 224, 143, 0.55); }
+    70% { box-shadow: 0 0 0 7px rgba(0, 224, 143, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 224, 143, 0); }
+  }
+  .cursor-blink {
+    display: inline-block;
+    width: 6px; height: 12px;
+    background: var(--amber);
+    animation: blink 1s steps(1) infinite;
+    vertical-align: middle;
+  }
+  @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+  /* ---------- ticker tape ---------- */
+  .tape-wrap {
+    border-bottom: 1px solid var(--border);
+    background: #000;
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+    height: 30px;
+    display: flex;
+    align-items: center;
+  }
+  .tape-label {
+    flex-shrink: 0;
+    background: var(--amber);
+    color: #1A1200;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 6px 12px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    z-index: 2;
+  }
+  .tape-track {
+    display: inline-flex;
+    align-items: center;
+    animation: tapeScroll 32s linear infinite;
+    padding-left: 100%;
+  }
+  .tape-track.paused { animation-play-state: paused; }
+  @keyframes tapeScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+  }
+  .tape-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 22px;
+    font-size: 11.5px;
+    color: var(--muted);
+    border-right: 1px solid var(--border);
+  }
+  .tape-item .up { color: var(--up); font-weight: 600; }
+  .tape-item .down { color: var(--down); font-weight: 600; }
+  .tape-item .field { color: var(--text-bright); }
+
+  /* ---------- layout ---------- */
+  .container { padding: 20px 24px 48px; max-width: 100%; }
   .meta-row {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 16px;
+    align-items: center;
+    margin-bottom: 14px;
     flex-wrap: wrap;
     gap: 10px;
   }
-  .sheet-name {
-    font-size: 22px;
+  .sheet-name-wrap { display: flex; align-items: baseline; gap: 10px; }
+  .sheet-tag {
+    font-size: 10px;
+    color: var(--bg);
+    background: var(--muted);
+    padding: 2px 6px;
+    letter-spacing: 0.08em;
     font-weight: 600;
   }
-  .row-count {
-    font-family: 'IBM Plex Mono', monospace;
+  .sheet-name {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-bright);
+    letter-spacing: 0.01em;
+  }
+  .row-count, .col-count {
     color: var(--muted);
-    font-size: 13px;
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
   }
-  .table-wrap {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: auto;
-    background: var(--panel);
-    max-width: 100%;
-    max-height: 72vh;
-  }
-  .table-wrap::-webkit-scrollbar {
-    height: 10px;
-    width: 10px;
-  }
-  .table-wrap::-webkit-scrollbar-track {
-    background: var(--panel);
-  }
-  .table-wrap::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 5px;
-  }
-  .table-wrap::-webkit-scrollbar-thumb:hover {
-    background: var(--muted);
-  }
-  table {
-    width: max-content;
-    min-width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 13px;
-  }
-  thead th {
-    text-align: left;
-    padding: 12px 16px;
-    background: #171C22;
-    color: var(--muted);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    font-size: 11px;
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    max-width: 320px;
-  }
-  thead th.col-num { text-align: right; }
-  thead th.idx-col {
-    left: 0;
-    z-index: 3;
-    text-align: center;
-    width: 1%;
-  }
-  tbody td {
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border);
-    color: var(--text);
-    white-space: nowrap;
-    max-width: 320px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  tbody td.col-num {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-    color: #B9E6CA;
-  }
-  tbody td.idx-col {
-    position: sticky;
-    left: 0;
-    background: #12161B;
-    color: var(--muted);
-    text-align: center;
-    z-index: 1;
-    font-size: 11px;
-  }
-  tbody tr:last-child td { border-bottom: none; }
-  tbody tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
-  tbody tr:nth-child(even) td.idx-col { background: #141920; }
-  tbody tr:hover td { background: #171C22; }
-  tbody tr:hover td.idx-col { background: #1A2029; }
-  tbody tr.updated td {
-    animation: rowFlash 1.4s ease-out;
-  }
-  @keyframes rowFlash {
-    0% { background: rgba(61, 220, 132, 0.18); }
-    100% { background: transparent; }
-  }
-  .toolbar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+  .row-count .num, .col-count .num { color: var(--text-bright); }
+
+  .toolbar { display: flex; align-items: center; gap: 10px; }
   .search-box {
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 7px;
-    padding: 7px 12px;
+    padding: 7px 10px 7px 28px;
     font-family: 'IBM Plex Mono', monospace;
     font-size: 12px;
     color: var(--text);
     outline: none;
     width: 220px;
     transition: border-color 0.15s;
+    position: relative;
   }
-  .search-box:focus { border-color: var(--live-dim); }
+  .search-box:focus { border-color: var(--amber-dim); }
   .search-box::placeholder { color: var(--muted); }
-  .col-count {
-    font-family: 'IBM Plex Mono', monospace;
+  .search-wrap { position: relative; display: flex; align-items: center; }
+  .search-wrap::before {
+    content: '/';
+    position: absolute;
+    left: 10px;
     color: var(--muted);
     font-size: 12px;
+    pointer-events: none;
   }
-  .no-match {
-    padding: 40px 20px;
-    text-align: center;
+
+  /* ---------- table panel ---------- */
+  .table-wrap {
+    border: 1px solid var(--border);
+    overflow: auto;
+    background: var(--panel);
+    max-width: 100%;
+    max-height: 68vh;
+    position: relative;
+  }
+  .table-wrap::-webkit-scrollbar { height: 10px; width: 10px; }
+  .table-wrap::-webkit-scrollbar-track { background: var(--panel); }
+  .table-wrap::-webkit-scrollbar-thumb { background: var(--border-bright); }
+  .table-wrap::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12.5px;
+  }
+  thead th {
+    text-align: left;
+    padding: 10px 14px;
+    background: var(--panel-alt);
     color: var(--muted);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 10.5px;
+    border-bottom: 1px solid var(--border-bright);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    max-width: 320px;
   }
-  .empty-state {
+  thead th.col-num { text-align: right; }
+  thead th.idx-col { left: 0; z-index: 3; text-align: center; width: 1%; }
+  thead th:last-child { border-right: none; }
+
+  tbody td {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    color: var(--text);
+    white-space: nowrap;
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  tbody td:last-child { border-right: none; }
+  tbody td.col-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+  tbody td.idx-col {
+    position: sticky;
+    left: 0;
+    background: var(--panel-alt);
+    color: var(--muted);
+    text-align: center;
+    z-index: 1;
+    font-size: 10.5px;
+    border-right: 1px solid var(--border-bright);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) td { background: rgba(255,255,255,0.012); }
+  tbody tr:nth-child(even) td.idx-col { background: #0C1015; }
+  tbody tr:hover td { background: #12171C; }
+  tbody tr:hover td.idx-col { background: #151B21; }
+
+  tbody tr.updated td { animation: rowFlash 1.2s ease-out; }
+  @keyframes rowFlash {
+    0% { background: rgba(255, 159, 28, 0.14); }
+    100% { background: transparent; }
+  }
+
+  td.tick-up { color: var(--up) !important; animation: flashUp 1.6s ease-out; }
+  td.tick-down { color: var(--down) !important; animation: flashDown 1.6s ease-out; }
+  @keyframes flashUp {
+    0% { background: rgba(0, 224, 143, 0.28); }
+    100% { background: transparent; }
+  }
+  @keyframes flashDown {
+    0% { background: rgba(255, 71, 87, 0.28); }
+    100% { background: transparent; }
+  }
+  .arrow-up::before { content: '▲ '; font-size: 9px; }
+  .arrow-down::before { content: '▼ '; font-size: 9px; }
+
+  .empty-state, .no-match {
     padding: 60px 20px;
     text-align: center;
     color: var(--muted);
   }
-  .empty-state .big {
-    font-size: 15px;
-    color: var(--text);
-    margin-bottom: 6px;
-  }
-  .empty-state .small {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-  }
+  .empty-state .big { font-size: 14px; color: var(--text-bright); margin-bottom: 6px; }
+  .empty-state .small, .no-match { font-size: 12px; }
+
+  ::selection { background: var(--amber-dim); color: var(--text-bright); }
 </style>
 </head>
 <body>
@@ -251,20 +340,35 @@
 
 <div class="topbar">
   <div class="brand">
-    <div class="brand-title">Live Excel Dashboard</div>
-    <div class="brand-sub">/ real-time sync</div>
+    <div class="brand-mark"></div>
+    <div class="brand-title">TERM // Excel Feed</div>
+    <div class="brand-sub">real-time sheet sync</div>
   </div>
   <div class="status">
-    <div class="status-item"><span class="dot" id="connDot"></span><span id="connText">connecting…</span></div>
-    <div class="status-item">last update: <span id="updatedAt" style="color:var(--text)">—</span></div>
+    <div class="status-item"><span class="dot" id="connDot"></span><span id="connText" class="status-val">connecting…</span></div>
+    <div class="status-item"><span class="status-label">upd</span><span class="status-val" id="updatedAt">—</span></div>
+    <div class="status-item"><span class="status-label">age</span><span class="status-val" id="ageAt">—</span></div>
+    <div class="status-item"><span class="status-label">clock</span><span class="status-val" id="clockAt">—</span><span class="cursor-blink"></span></div>
+  </div>
+</div>
+
+<div class="tape-wrap">
+  <div class="tape-label">TICK&nbsp;TAPE</div>
+  <div class="tape-track" id="tapeTrack">
+    <div class="tape-item">Waiting for tick data…</div>
   </div>
 </div>
 
 <div class="container">
   <div class="meta-row">
-    <div class="sheet-name" id="sheetName">Waiting for data…</div>
+    <div class="sheet-name-wrap">
+      <span class="sheet-tag">SHEET</span>
+      <div class="sheet-name" id="sheetName">Waiting for data…</div>
+    </div>
     <div class="toolbar">
-      <input type="text" class="search-box" id="searchBox" placeholder="Search rows…" oninput="applyFilter()" disabled>
+      <div class="search-wrap">
+        <input type="text" class="search-box" id="searchBox" placeholder="search rows…" oninput="applyFilter()" disabled>
+      </div>
       <span class="col-count" id="colCount"></span>
       <span class="row-count" id="rowCount"></span>
     </div>
@@ -290,11 +394,17 @@
   const rowCount = document.getElementById('rowCount');
   const colCount = document.getElementById('colCount');
   const updatedAt = document.getElementById('updatedAt');
+  const ageAt = document.getElementById('ageAt');
+  const clockAt = document.getElementById('clockAt');
   const tableContainer = document.getElementById('tableContainer');
   const searchBox = document.getElementById('searchBox');
+  const tapeTrack = document.getElementById('tapeTrack');
 
   let currentHeaders = [];
   let currentRows = [];
+  let previousRows = null;
+  let lastUpdateTime = null;
+  let tapeLog = []; // recent tick changes, newest first
 
   socket.on('connect', () => {
     connDot.classList.add('live');
@@ -310,22 +420,25 @@
     if (!data || !data.headers || data.headers.length === 0) return;
     loadData(data);
     scanline.classList.remove('flash');
-    void scanline.offsetWidth; // restart animation
+    void scanline.offsetWidth;
     scanline.classList.add('flash');
   });
 
   function loadData(data) {
     sheetName.textContent = data.sheet_name || 'Sheet';
-    rowCount.textContent = `${data.rows.length} rows`;
-    colCount.textContent = `${data.headers.length} cols`;
+    rowCount.innerHTML = `<span class="num">${data.rows.length}</span> rows`;
+    colCount.innerHTML = `<span class="num">${data.headers.length}</span> cols`;
     updatedAt.textContent = data.updated_at || '—';
+    lastUpdateTime = Date.now();
+
+    const headersChanged = JSON.stringify(currentHeaders) !== JSON.stringify(data.headers);
+    previousRows = headersChanged ? null : currentRows;
     currentHeaders = data.headers;
     currentRows = data.rows;
     searchBox.disabled = false;
-    renderTable(currentHeaders, currentRows);
+    renderTable(currentHeaders, currentRows, true);
   }
 
-  // Ek column poori tarah numeric hai ya nahi, yeh check karke right-align + number formatting apply karte hain
   function isNumericValue(v) {
     if (v === null || v === undefined || v === '') return false;
     const n = Number(String(v).replace(/,/g, ''));
@@ -349,7 +462,49 @@
     return n.toLocaleString('en-IN', { maximumFractionDigits: 4 });
   }
 
-  function renderTable(headers, rows) {
+  // previous snapshot ke against numeric deltas nikal ke tick tape mein daalte hain
+  function diffAndLog(headers, rows, numericCols) {
+    if (!previousRows) return;
+    const newEntries = [];
+    rows.forEach((row, rIdx) => {
+      const prevRow = previousRows[rIdx];
+      if (!prevRow) return;
+      row.forEach((cell, cIdx) => {
+        if (!numericCols[cIdx]) return;
+        const prevVal = prevRow[cIdx];
+        if (!isNumericValue(cell) || !isNumericValue(prevVal)) return;
+        const a = Number(String(prevVal).replace(/,/g, ''));
+        const b = Number(String(cell).replace(/,/g, ''));
+        if (a === b) return;
+        newEntries.push({
+          field: headers[cIdx],
+          row: rIdx + 1,
+          from: a,
+          to: b,
+          up: b > a
+        });
+      });
+    });
+    if (newEntries.length) {
+      tapeLog = [...newEntries.reverse(), ...tapeLog].slice(0, 40);
+      renderTape();
+    }
+  }
+
+  function renderTape() {
+    if (tapeLog.length === 0) return;
+    const html = tapeLog.map(e => `
+      <div class="tape-item">
+        <span class="field">${escapeHtml(e.field)}</span>
+        <span>R${e.row}</span>
+        <span>${formatNumber(e.from)} → </span>
+        <span class="${e.up ? 'up' : 'down'}">${formatNumber(e.to)} ${e.up ? '▲' : '▼'}</span>
+      </div>`).join('');
+    // duplicate content for seamless marquee loop
+    tapeTrack.innerHTML = html + html;
+  }
+
+  function renderTable(headers, rows, checkDiff) {
     if (rows.length === 0) {
       tableContainer.innerHTML = `
         <div class="empty-state">
@@ -360,20 +515,32 @@
     }
 
     const numericCols = headers.map((_, i) => columnIsNumeric(i, rows));
+    if (checkDiff) diffAndLog(headers, rows, numericCols);
 
     let html = '<table><thead><tr><th class="idx-col">#</th>';
     headers.forEach((h, i) => {
       html += `<th class="${numericCols[i] ? 'col-num' : ''}" title="${escapeHtml(h)}">${escapeHtml(h)}</th>`;
     });
     html += '</tr></thead><tbody>';
+
     rows.forEach((row, rIdx) => {
+      const prevRow = previousRows ? previousRows[rIdx] : null;
       html += '<tr class="updated">';
       html += `<td class="idx-col">${rIdx + 1}</td>`;
       row.forEach((cell, cIdx) => {
         const raw = cell === null || cell === undefined ? '' : cell;
         const isNum = numericCols[cIdx] && isNumericValue(raw) && raw !== '';
         const display = isNum ? formatNumber(raw) : escapeHtml(raw);
-        html += `<td class="${isNum ? 'col-num' : ''}" title="${escapeHtml(raw)}">${display}</td>`;
+
+        let tickClass = '';
+        if (checkDiff && isNum && prevRow && isNumericValue(prevRow[cIdx])) {
+          const a = Number(String(prevRow[cIdx]).replace(/,/g, ''));
+          const b = Number(String(raw).replace(/,/g, ''));
+          if (b > a) tickClass = 'tick-up arrow-up';
+          else if (b < a) tickClass = 'tick-down arrow-down';
+        }
+
+        html += `<td class="${isNum ? 'col-num' : ''} ${tickClass}" title="${escapeHtml(raw)}">${display}</td>`;
       });
       html += '</tr>';
     });
@@ -384,19 +551,19 @@
   function applyFilter() {
     const q = searchBox.value.trim().toLowerCase();
     if (!q) {
-      renderTable(currentHeaders, currentRows);
-      rowCount.textContent = `${currentRows.length} rows`;
+      renderTable(currentHeaders, currentRows, false);
+      rowCount.innerHTML = `<span class="num">${currentRows.length}</span> rows`;
       return;
     }
     const filtered = currentRows.filter(row =>
       row.some(cell => String(cell ?? '').toLowerCase().includes(q))
     );
-    rowCount.textContent = `${filtered.length} / ${currentRows.length} rows`;
+    rowCount.innerHTML = `<span class="num">${filtered.length}</span> / ${currentRows.length} rows`;
     if (filtered.length === 0) {
       tableContainer.innerHTML = `<div class="no-match">Koi match nahi mila for "${escapeHtml(searchBox.value)}"</div>`;
       return;
     }
-    renderTable(currentHeaders, filtered);
+    renderTable(currentHeaders, filtered, false);
   }
 
   function escapeHtml(val) {
@@ -405,7 +572,28 @@
     return div.innerHTML;
   }
 
-  // Page load hote hi latest data fetch kar lo (agar socket connect hone se pehle miss ho jaaye)
+  // "/" dabao to search box par jump ho jaaye, jaise real terminals mein hota hai
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== searchBox) {
+      e.preventDefault();
+      searchBox.focus();
+    }
+    if (e.key === 'Escape' && document.activeElement === searchBox) {
+      searchBox.value = '';
+      applyFilter();
+      searchBox.blur();
+    }
+  });
+
+  // session clock + "last update kitni der pehle" — terminal jaisa live feel
+  setInterval(() => {
+    clockAt.textContent = new Date().toLocaleTimeString('en-IN', { hour12: false });
+    if (lastUpdateTime) {
+      const secs = Math.floor((Date.now() - lastUpdateTime) / 1000);
+      ageAt.textContent = secs < 1 ? 'now' : `${secs}s`;
+    }
+  }, 1000);
+
   fetch('/latest').then(r => r.json()).then(data => {
     if (data.headers && data.headers.length) {
       loadData(data);

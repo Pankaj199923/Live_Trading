@@ -128,14 +128,15 @@
 
   /* ---------- ticker tape ---------- */
   .tape-wrap {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid rgba(255, 159, 28, 0.35);
     background: #000;
     overflow: hidden;
     white-space: nowrap;
     position: relative;
-    height: 30px;
+    height: 32px;
     display: flex;
     align-items: center;
+    box-shadow: 0 0 14px rgba(255, 159, 28, 0.08) inset;
   }
   .tape-label {
     flex-shrink: 0;
@@ -149,6 +150,7 @@
     display: flex;
     align-items: center;
     z-index: 2;
+    box-shadow: 0 0 10px rgba(255, 159, 28, 0.65), 0 0 22px rgba(255, 159, 28, 0.3);
   }
   .tape-track {
     display: inline-flex;
@@ -162,15 +164,33 @@
   .tape-item {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 0 22px;
-    font-size: 11.5px;
-    color: var(--muted);
+    gap: 8px;
+    padding: 0 24px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-bright);
     border-right: 1px solid var(--border);
   }
-  .tape-item .up { color: var(--up); font-weight: 600; }
-  .tape-item .down { color: var(--down); font-weight: 600; }
-  .tape-item .field { color: var(--text-bright); }
+  .tape-item .field {
+    color: #39FF6B;
+    font-weight: 700;
+    text-shadow: 0 0 6px rgba(57, 255, 107, 0.75), 0 0 16px rgba(57, 255, 107, 0.4);
+  }
+  .tape-item .val {
+    color: #29E7FF;
+    font-weight: 600;
+    text-shadow: 0 0 6px rgba(41, 231, 255, 0.75), 0 0 16px rgba(41, 231, 255, 0.4);
+  }
+  .tape-item .up {
+    color: var(--up);
+    font-weight: 700;
+    text-shadow: 0 0 6px rgba(0, 224, 143, 0.8), 0 0 16px rgba(0, 224, 143, 0.45);
+  }
+  .tape-item .down {
+    color: var(--down);
+    font-weight: 700;
+    text-shadow: 0 0 6px rgba(255, 71, 87, 0.8), 0 0 16px rgba(255, 71, 87, 0.45);
+  }
 
   /* ---------- layout ---------- */
   .container { padding: 20px 24px 48px; max-width: 100%; }
@@ -521,7 +541,7 @@
       const v = cellText(row[0]);
       if (v === '') continue;
       const display = isNumericValue(v) ? formatNumber(v) : v;
-      items.push(`<div class="tape-item"><span class="field">A${rIdx + 1}</span><span>${escapeHtml(display)}</span></div>`);
+      items.push(`<div class="tape-item"><span class="field">A${rIdx + 1}</span><span class="val">${escapeHtml(display)}</span></div>`);
     }
     return items.join('');
   }
@@ -564,7 +584,7 @@
         <div class="tape-item">
           <span class="field">${escapeHtml(e.field)}</span>
           <span>R${e.row}</span>
-          <span>${formatNumber(e.from)} → </span>
+          <span class="val">${formatNumber(e.from)} → </span>
           <span class="${e.up ? 'up' : 'down'}">${formatNumber(e.to)} ${e.up ? '▲' : '▼'}</span>
         </div>`).join('');
     } else {

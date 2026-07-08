@@ -334,40 +334,6 @@
   .empty-state .big { font-size: 14px; color: var(--text-bright); margin-bottom: 6px; }
   .empty-state .small, .no-match { font-size: 12px; }
 
-  body { padding-bottom: 60px; }
-
-  .bottom-tape-wrap {
-    position: fixed;
-    left: 0; right: 0; bottom: 0;
-    z-index: 40;
-    background: #000;
-    border-top: 1px solid var(--border-bright);
-    box-shadow: 0 -6px 18px rgba(0,0,0,0.45);
-  }
-  .bottom-tape-row {
-    display: flex;
-    align-items: center;
-    height: 27px;
-    overflow: hidden;
-    white-space: nowrap;
-    border-top: 1px solid var(--border);
-  }
-  .bottom-tape-row:first-child { border-top: none; }
-  .bottom-label {
-    flex-shrink: 0;
-    background: var(--up);
-    color: #04180F;
-    font-weight: 700;
-    font-size: 9.5px;
-    letter-spacing: 0.1em;
-    padding: 0 10px;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    z-index: 2;
-  }
-  .bottom-label.alt { background: var(--amber); color: #1A1200; }
-
   ::selection { background: var(--amber-dim); color: var(--text-bright); }
 </style>
 </head>
@@ -421,17 +387,6 @@
   </div>
 </div>
 
-<div class="bottom-tape-wrap">
-  <div class="bottom-tape-row">
-    <div class="bottom-label">LIVE TICKS</div>
-    <div class="tape-track" id="bottomTrack1"><div class="tape-item">Awaiting tick data…</div></div>
-  </div>
-  <div class="bottom-tape-row">
-    <div class="bottom-label alt">MARKET DATA</div>
-    <div class="tape-track" id="bottomTrack2"><div class="tape-item">Awaiting sheet data…</div></div>
-  </div>
-</div>
-
 <script src="/static/socket.io.min.js"></script>
 <script>
   const socket = io();
@@ -448,8 +403,6 @@
   const tableWrap = document.querySelector('.table-wrap');
   const searchBox = document.getElementById('searchBox');
   const tapeTrack = document.getElementById('tapeTrack');
-  const bottomTrack1 = document.getElementById('bottomTrack1');
-  const bottomTrack2 = document.getElementById('bottomTrack2');
 
   let currentHeaders = [];
   let currentRows = [];
@@ -559,22 +512,17 @@
 
   function cellText(v) { return v === null || v === undefined ? '' : String(v); }
 
-  // Jab tak koi tick change nahi hua, sheet ke current label:value pairs dikhate hain
-  // (jaise SYMBOL: LAST_PRICE) taaki tape kabhi khali na dikhe
+  // Sirf column A ke rows 17 se 21 tak ka data tape mein dikhate hain
   function buildSnapshotItems(headers, rows) {
     const items = [];
-    rows.forEach(row => {
-      let label = null, value = null;
-      for (let i = 0; i < row.length; i++) {
-        const v = cellText(row[i]);
-        if (v === '') continue;
-        if (isNumericValue(v)) { if (value === null) value = v; }
-        else { if (label === null) label = v; }
-      }
-      if (label !== null && value !== null) {
-        items.push(`<div class="tape-item"><span class="field">${escapeHtml(label)}</span><span>${formatNumber(value)}</span></div>`);
-      }
-    });
+    for (let rIdx = 16; rIdx <= 20 && rIdx < rows.length; rIdx++) {
+      const row = rows[rIdx];
+      if (!row) continue;
+      const v = cellText(row[0]);
+      if (v === '') continue;
+      const display = isNumericValue(v) ? formatNumber(v) : v;
+      items.push(`<div class="tape-item"><span class="field">A${rIdx + 1}</span><span>${escapeHtml(display)}</span></div>`);
+    }
     return items.join('');
   }
 
@@ -617,19 +565,13 @@
           <span class="${e.up ? 'up' : 'down'}">${formatNumber(e.to)} ${e.up ? '▲' : '▼'}</span>
         </div>`).join('');
       setTapeContent(diffHtml);
-      setTrackContent(bottomTrack1, diffHtml, 65);
     } else {
       setTapeContent(snapshotHtml);
-      setTrackContent(bottomTrack1, snapshotHtml, 65);
     }
-    // Neeche wali doosri line hamesha poora sheet snapshot dikhati rehti hai, thodi alag speed se
-    setTrackContent(bottomTrack2, snapshotHtml, 48);
   }
 
-  // Placeholder tapes turant chalu ho jaayein, data load hone se pehle hi
+  // Placeholder tape turant chalu ho jaaye, data load hone se pehle hi
   setTapeContent(null);
-  setTrackContent(bottomTrack1, null, 65);
-  setTrackContent(bottomTrack2, null, 48);
 
   // Purane snapshot se naya snapshot compare karke sirf badle hue cells ki list banate hain
   function computeDiffs(headers, rows, numericCols) {

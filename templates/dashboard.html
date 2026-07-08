@@ -126,72 +126,6 @@
   }
   @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
 
-  /* ---------- ticker tape ---------- */
-  .tape-wrap {
-    border-bottom: 1px solid rgba(255, 159, 28, 0.35);
-    background: #000;
-    overflow: hidden;
-    white-space: nowrap;
-    position: relative;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    box-shadow: 0 0 14px rgba(255, 159, 28, 0.08) inset;
-  }
-  .tape-label {
-    flex-shrink: 0;
-    background: var(--amber);
-    color: #1A1200;
-    font-weight: 700;
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    padding: 6px 12px;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    z-index: 2;
-    box-shadow: 0 0 10px rgba(255, 159, 28, 0.65), 0 0 22px rgba(255, 159, 28, 0.3);
-  }
-  .tape-track {
-    display: inline-flex;
-    align-items: center;
-    will-change: transform;
-  }
-  @keyframes tapeScroll {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-  }
-  .tape-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 24px;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text-bright);
-    border-right: 1px solid var(--border);
-  }
-  .tape-item .field {
-    color: #39FF6B;
-    font-weight: 700;
-    text-shadow: 0 0 6px rgba(57, 255, 107, 0.75), 0 0 16px rgba(57, 255, 107, 0.4);
-  }
-  .tape-item .val {
-    color: #29E7FF;
-    font-weight: 600;
-    text-shadow: 0 0 6px rgba(41, 231, 255, 0.75), 0 0 16px rgba(41, 231, 255, 0.4);
-  }
-  .tape-item .up {
-    color: var(--up);
-    font-weight: 700;
-    text-shadow: 0 0 6px rgba(0, 224, 143, 0.8), 0 0 16px rgba(0, 224, 143, 0.45);
-  }
-  .tape-item .down {
-    color: var(--down);
-    font-weight: 700;
-    text-shadow: 0 0 6px rgba(255, 71, 87, 0.8), 0 0 16px rgba(255, 71, 87, 0.45);
-  }
-
   /* ---------- layout ---------- */
   .container { padding: 20px 24px 48px; max-width: 100%; }
   .meta-row {
@@ -252,53 +186,54 @@
   /* ---------- table panel ---------- */
   .table-wrap {
     border: 1px solid var(--border);
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
     background: var(--panel);
     max-width: 100%;
-    max-height: 68vh;
+    max-height: 76vh;
     position: relative;
   }
-  .table-wrap::-webkit-scrollbar { height: 10px; width: 10px; }
+  .table-wrap::-webkit-scrollbar { width: 10px; }
   .table-wrap::-webkit-scrollbar-track { background: var(--panel); }
   .table-wrap::-webkit-scrollbar-thumb { background: var(--border-bright); }
   .table-wrap::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
   table {
-    width: max-content;
-    min-width: 100%;
+    width: 100%;
+    table-layout: fixed;
     border-collapse: separate;
     border-spacing: 0;
     font-size: 12.5px;
   }
   thead th {
     text-align: left;
-    padding: 10px 14px;
+    padding: 10px 12px;
     background: var(--panel-alt);
     color: var(--muted);
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     font-size: 10.5px;
     border-bottom: 1px solid var(--border-bright);
     border-right: 1px solid var(--border);
     position: sticky;
     top: 0;
     z-index: 2;
-    max-width: 320px;
+    overflow-wrap: break-word;
   }
   thead th.col-num { text-align: right; }
-  thead th.idx-col { left: 0; z-index: 3; text-align: center; width: 1%; }
+  thead th.idx-col { width: 44px; text-align: center; }
   thead th:last-child { border-right: none; }
 
   tbody td {
-    padding: 8px 14px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--border);
     border-right: 1px solid var(--border);
     color: var(--text);
-    white-space: nowrap;
-    max-width: 320px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    vertical-align: top;
   }
   tbody td:last-child { border-right: none; }
   tbody td.col-num {
@@ -307,12 +242,9 @@
     color: var(--text);
   }
   tbody td.idx-col {
-    position: sticky;
-    left: 0;
     background: var(--panel-alt);
     color: var(--muted);
     text-align: center;
-    z-index: 1;
     font-size: 10.5px;
     border-right: 1px solid var(--border-bright);
   }
@@ -375,13 +307,6 @@
   </div>
 </div>
 
-<div class="tape-wrap">
-  <div class="tape-label">TICK&nbsp;TAPE</div>
-  <div class="tape-track" id="tapeTrack">
-    <div class="tape-item">Waiting for tick data…</div>
-  </div>
-</div>
-
 <div class="container">
   <div class="meta-row">
     <div class="sheet-name-wrap">
@@ -422,13 +347,11 @@
   const tableContainer = document.getElementById('tableContainer');
   const tableWrap = document.querySelector('.table-wrap');
   const searchBox = document.getElementById('searchBox');
-  const tapeTrack = document.getElementById('tapeTrack');
 
   let currentHeaders = [];
   let currentRows = [];
   let previousRows = null;      // last snapshot actually shown, for diffing
   let lastUpdateTime = null;
-  let tapeLog = [];
 
   // ---- live table DOM cache: only rebuilt when structure changes ----
   let tableBuilt = false;
@@ -477,14 +400,6 @@
     }
     colCount.innerHTML = `<span class="num">${headers.length}</span> cols`;
 
-    if (diffs.length) {
-      const numericDiffs = diffs.filter(d => d.up !== null);
-      if (numericDiffs.length) {
-        tapeLog = [...numericDiffs.slice().reverse(), ...tapeLog].slice(0, 40);
-      }
-    }
-    refreshTape(headers, rows);
-
     if (searchBox.value.trim()) {
       // search active hai to filtered view hi refresh hoga, live update ke saath
       showingFiltered = true;
@@ -531,75 +446,6 @@
   }
 
   function cellText(v) { return v === null || v === undefined ? '' : String(v); }
-
-  // Sirf column A ke rows 17 se 21 tak ka data tape mein dikhate hain
-  function buildSnapshotItems(headers, rows) {
-    const items = [];
-    for (let rIdx = 16; rIdx <= 20 && rIdx < rows.length; rIdx++) {
-      const row = rows[rIdx];
-      if (!row) continue;
-      const v = cellText(row[0]);
-      if (v === '') continue;
-      const display = isNumericValue(v) ? formatNumber(v) : v;
-      items.push(`<div class="tape-item"><span class="field">A${rIdx + 1}</span><span class="val">${escapeHtml(display)}</span></div>`);
-    }
-    return items.join('');
-  }
-
-  // Kisi bhi tape-track element ko continuously left-to-right scroll karwane ka reusable helper.
-  // Content ko repeat karke poora width bharte hain, phir duplicate karke seamless infinite loop banate hain.
-  function setTrackContent(trackEl, itemsHtml, pxPerSecond) {
-    if (!trackEl) return;
-    if (!itemsHtml) {
-      itemsHtml = `<div class="tape-item">Awaiting data…</div>`;
-    }
-    trackEl.style.animation = 'none';
-    let block = itemsHtml;
-    trackEl.innerHTML = block;
-    const wrapWidth = trackEl.parentElement.clientWidth || 900;
-    let guard = 0;
-    while (trackEl.scrollWidth < wrapWidth * 1.4 && guard < 25) {
-      block += itemsHtml;
-      trackEl.innerHTML = block;
-      guard++;
-    }
-    const singleWidth = trackEl.scrollWidth;
-    trackEl.innerHTML = block + block; // duplicate once for the seamless loop
-    const duration = Math.max(10, singleWidth / (pxPerSecond || 65));
-    void trackEl.offsetWidth; // reflow before re-applying animation
-    trackEl.style.animation = `tapeScroll ${duration}s linear infinite`;
-  }
-
-  function setTapeContent(itemsHtml) {
-    setTrackContent(tapeTrack, itemsHtml, 65);
-  }
-
-  let lastTapeSignature = null;
-
-  function refreshTape(headers, rows) {
-    const snapshotHtml = buildSnapshotItems(headers, rows);
-    let html;
-    if (tapeLog.length > 0) {
-      html = tapeLog.map(e => `
-        <div class="tape-item">
-          <span class="field">${escapeHtml(e.field)}</span>
-          <span>R${e.row}</span>
-          <span class="val">${formatNumber(e.from)} → </span>
-          <span class="${e.up ? 'up' : 'down'}">${formatNumber(e.to)} ${e.up ? '▲' : '▼'}</span>
-        </div>`).join('');
-    } else {
-      html = snapshotHtml;
-    }
-
-    // Content wahi hai to tape ko chhedo mat — animation apni running cycle poori karega,
-    // sirf tabhi restart hoga jab A40:A41 ki value sach mein badle
-    if (html === lastTapeSignature) return;
-    lastTapeSignature = html;
-    setTapeContent(html);
-  }
-
-  // Placeholder tape turant chalu ho jaaye, data load hone se pehle hi
-  setTapeContent(null);
 
   // Purane snapshot se naya snapshot compare karke sirf badle hue cells ki list banate hain
   function computeDiffs(headers, rows, numericCols) {
